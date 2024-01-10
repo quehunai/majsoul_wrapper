@@ -140,7 +140,7 @@ RPC_server.start()
 chrome_options = Options()
 chrome_options.add_argument('--proxy-server=127.0.0.1:8080')
 chrome_options.add_argument('--ignore-certificate-errors')
-browser = webdriver.Chrome(chrome_options=chrome_options)
+browser = webdriver.Chrome(options=chrome_options)
 #browser.get('https://www.majsoul.com/1/')
 
 if __name__=='__main__':
