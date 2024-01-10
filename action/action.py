@@ -203,8 +203,8 @@ class GUIInterface:
 
     def actionLiqi(self, tile: str):
         self.clickButton(self.liqiImg)
-        time.sleep(0.5)
-        self.actionDiscardTile(tile)
+        # time.sleep(0.5)
+        # self.actionDiscardTile(tile)
 
     def actionHu(self):
         self.clickButton(self.huImg)
