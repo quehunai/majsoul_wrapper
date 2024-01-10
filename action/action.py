@@ -158,10 +158,15 @@ class GUIInterface:
         join = os.path.join
         root = os.path.dirname(__file__)
         def load(name): return cv2.imread(join(root, 'template', name))
-        self.menuImg = load('menu.png')         # 初始菜单界面
+        self.menuImg = load('menu2.png')         # 自截初始菜单界面
         if (type(self.menuImg)==type(None)):
-            raise FileNotFoundError("menu.png not found, please check the Chinese path")
+            raise FileNotFoundError("menu2.png not found, please check the Chinese path")
         assert(self.menuImg.shape == (1080, 1920, 3))
+        # 遗留代码，该变量应该和menuImg保持一致
+        self.homeImg = load('menu2.png')
+        if (type(self.homeImg)==type(None)):
+            raise FileNotFoundError("menu2.png not found, please check the Chinese path")
+        assert(self.homeImg.shape == (1080, 1920, 3))
         self.chiImg = load('chi.png')
         self.pengImg = load('peng.png')
         self.gangImg = load('gang.png')
@@ -178,15 +183,25 @@ class GUIInterface:
 
     def actionDiscardTile(self, tile: str):
         L = self._getHandTiles()
+        def discardByXY(x, y): # 根据坐标打出牌
+            pyautogui.moveTo(x=x, y=y)
+            time.sleep(0.3)
+            pyautogui.click(x=x, y=y, button='left')
+            time.sleep(1)
+            # out of screen
+            pyautogui.moveTo(x=self.waitPos[0], y=self.waitPos[1])
         for t, (x, y) in L:
             if t == tile:
-                pyautogui.moveTo(x=x, y=y)
-                time.sleep(0.3)
-                pyautogui.click(x=x, y=y, button='left')
-                time.sleep(1)
-                # out of screen
-                pyautogui.moveTo(x=self.waitPos[0], y=self.waitPos[1])
+                discardByXY(x,y)
                 return True
+        import random
+        # 如果没有牌也不会抛出异常，而是进入乱打模式，点击跳过按钮位置病随机打出一张
+        try:
+            self.clickButton(self.tiaoguoImg)
+            discardByXY(*random.choice(L)[1])
+        except:
+            pass
+        return True
         raise Exception(
             'GUIInterface.discardTile tile not found. L:', L, 'tile:', tile)
         return False
@@ -203,8 +218,9 @@ class GUIInterface:
 
     def actionLiqi(self, tile: str):
         self.clickButton(self.liqiImg)
-        # time.sleep(0.5)
-        # self.actionDiscardTile(tile)
+        # 忘记为什么取消这两行的注释了，先放在这里
+        time.sleep(0.5)
+        self.actionDiscardTile(tile)
 
     def actionHu(self):
         self.clickButton(self.huImg)
@@ -215,7 +231,7 @@ class GUIInterface:
     def calibrateMenu(self):
         # if the browser is on the initial menu, set self.M and return to True
         # if not return False
-        self.M = getHomographyMatrix(self.menuImg, screenShot(), threshold=0.7)
+        self.M = getHomographyMatrix(self.menuImg, screenShot(), threshold=0.9) #相似度阈值设为0.9，较低时点进段位场的界面也会认为是在开始菜单
         result = type(self.M) != type(None)
         if result:
             self.waitPos = np.int32(PosTransfer([100, 100], self.M))
@@ -336,18 +352,26 @@ class GUIInterface:
 
     def actionReturnToMenu(self):
         # 在终局以后点击确定跳转回菜单主界面
+        cnt = 0
         x, y = np.int32(PosTransfer((1785, 1003), self.M))  # 终局确认按钮
         while True:
             time.sleep(5)
             x0, y0 = np.int32(PosTransfer([0, 0], self.M))
             x1, y1 = np.int32(PosTransfer(Layout.size, self.M))
             img = screenShot()
-            S = Similarity(self.menuImg, img[y0:y1, x0:x1, :])
-            if S > 0.5:
+            S = Similarity(self.homeImg, img[y0:y1, x0:x1, :])
+            if S > 0.9: # 相似度阈值调高到0.9
                 return True
             else:
                 print('Similarity:', S)
                 pyautogui.click(x=x, y=y, duration=0.5)
+                # 如果点击30次还没回到开始菜单，可能是弹出公告栏，点击返回按钮
+                if cnt < 30:
+                    cnt += 1
+                else:
+                    xx, yy = np.int32(PosTransfer((1760, 179), self.M))
+                    pyautogui.click(x=xx, y=yy, duration=0.5)
+        # 1408,61
 
     def actionBeginGame(self, level: int):
         # 从开始界面点击匹配对局, level=0~4 (铜/银/金/玉/王座之间)
